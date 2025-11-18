@@ -1,0 +1,2 @@
+# Retrivo
+Retrivo is a Retrieval-Augmented Generation (RAG) application that allows users to upload PDFs, ingest their content into a vector database, and ask questions about them. It uses Streamlit for the frontend, Qdrant for vector storage, OpenAI for embeddings and answer generation, and Inngest for background ingestion workflows.
