@@ -154,12 +154,16 @@ uploaded = st.file_uploader("Choose a PDF", type=["pdf"], accept_multiple_files=
 
 if uploaded is not None:
     with st.spinner("Uploading and triggering ingestion..."):
-        path = save_uploaded_pdf(uploaded)
         try:
-            event_id = run_coro_in_thread(send_rag_ingest_event(path))
-            # Small pause for UX continuity
-            time.sleep(0.3)
-            st.success(f"Triggered ingestion for: {path.name} (event {event_id})")
+            api_base = os.getenv("RETRIVO_API_BASE", "http://127.0.0.1:8000")
+            resp = requests.post(
+                f"{api_base}/ingest",
+                files={"file": (uploaded.name, uploaded.getvalue(), "application/pdf")},
+                timeout=300.0,
+            )
+            resp.raise_for_status()
+            result = resp.json()
+            st.success(f"Ingested {uploaded.name} ({result.get('chunks', '?')} chunks)")
         except Exception as e:
             st.error(f"Failed to trigger ingest: {e}")
 
@@ -172,17 +176,16 @@ with st.form("rag_query_form"):
     submitted = st.form_submit_button("Ask")
 
     if submitted and question.strip():
-        with st.spinner("Sending event and generating answer..."):
+        with st.spinner("Generating answer..."):
             try:
-                event_id = run_coro_in_thread(send_rag_query_event(question.strip(), int(top_k)))
-
-                # Normalize event_id if library returned dict/list
-                if isinstance(event_id, dict):
-                    event_id = event_id.get("id") or event_id.get("event_id") or str(event_id)
-                if isinstance(event_id, (list, tuple)) and event_id:
-                    event_id = event_id[0]
-
-                output = wait_for_run_output(event_id)
+                api_base = os.getenv("RETRIVO_API_BASE", "http://127.0.0.1:8000")
+                resp = requests.post(
+                    f"{api_base}/query",
+                    json={"question": question.strip(), "top_k": int(top_k)},
+                    timeout=60.0,
+                )
+                resp.raise_for_status()
+                output = resp.json()
                 answer = output.get("answer", "")
                 sources = output.get("sources", [])
                 num_ctx = output.get("num_contexts", None)
@@ -197,9 +200,7 @@ with st.form("rag_query_form"):
                     st.caption("Sources")
                     for s in sources:
                         st.write(f"- {s}")
-            except TimeoutError as te:
-                st.error(f"Timed out waiting for an answer: {te}")
-            except RuntimeError as re:
-                st.error(f"Query failed: {re}")
+            except requests.RequestException as e:
+                st.error(f"Query failed: {e}")
             except Exception as e:
                 st.error(f"Unexpected error: {e}")
