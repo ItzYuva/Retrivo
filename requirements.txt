@@ -1,6 +1,5 @@
 fastapi
 uvicorn
-inngest
 python-dotenv
 openai
 llama-index-readers-file
