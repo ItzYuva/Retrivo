@@ -6,7 +6,7 @@ class QdrantStorage:
     def __init__(self, url=None, collection_name="docs", dim=3072):
         url = url or os.getenv("QDRANT_URL", "http://localhost:6333")
         api_key = os.getenv("QDRANT_API_KEY")
-        self.client = QdrantClient(url=url, api_key=api_key, timeout=30)
+        self.client = QdrantClient(url=url, api_key=api_key, timeout=30, port=443)
         self.collection = collection_name
         if not self.client.collection_exists(self.collection):
             self.client.create_collection(
