@@ -24,7 +24,7 @@ if uploaded is not None:
                 timeout=300.0,
             )
             resp.raise_for_status()
-            st.markdown("✅ Ready")
+            st.markdown("Ingestion successful!")
         except Exception as e:
             st.error(f"Failed to ingest: {e}")
 
