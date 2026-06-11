@@ -29,17 +29,43 @@ async def ingest_pdf(file: UploadFile):
     return {"status": "ingested", "filename": source, "chunks": len(chunks)}
 
 
+def rewrite_query(question: str, client: OpenAI) -> str:
+    res = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Rewrite the user's question as a declarative statement that would "
+                    "appear in a document. Output only the rewritten statement, nothing else."
+                ),
+            },
+            {"role": "user", "content": question},
+        ],
+    )
+    return res.choices[0].message.content.strip()
+
+
+SCORE_THRESHOLD = 0.4
+
+
 @app.post("/query")
 def query_pdf(payload: dict):
     question = payload["question"]
-    top_k = int(payload.get("top_k", 5))
+    top_k = 5
 
-    query_vec = embed_texts([question])[0]
+    client = OpenAI()
+    rewritten = rewrite_query(question, client)
+
+    query_vec = embed_texts([rewritten])[0]
     store = QdrantStorage()
     found = store.search_vectors(query_vec, top_k)
 
-    contexts = found["contexts"]
-    sources = found["sources"]
+    contexts = [c for c, s in zip(found["contexts"], found["scores"]) if s >= SCORE_THRESHOLD]
+
+    if not contexts:
+        return {"answer": "I couldn't find relevant information in the uploaded documents."}
 
     context_block = "\n\n".join(f"- {c}" for c in contexts)
     user_content = (
@@ -60,4 +86,4 @@ def query_pdf(payload: dict):
         ]
     )
     answer = res.choices[0].message.content.strip()
-    return {"answer": answer, "sources": sources, "num_contexts": len(contexts)}
+    return {"answer": answer}

@@ -28,14 +28,13 @@ class QdrantStorage:
             limit=top_k
         )
         contexts = []
-        sources = set()
+        scores = []
 
         for r in results.points:
             payload = getattr(r, 'payload', None) or {}
             text = payload.get('text', '')
-            source = payload.get('source', '')
             if text:
                 contexts.append(text)
-                sources.add(source)
+                scores.append(r.score)
 
-        return {"contexts": contexts, "sources": list(sources)}
+        return {"contexts": contexts, "scores": scores}
