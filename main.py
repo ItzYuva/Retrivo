@@ -21,11 +21,15 @@ async def ingest_pdf(file: UploadFile):
     file_path.write_bytes(await file.read())
 
     source = file.filename
+    store = QdrantStorage()
+    if store.source_exists(source):
+        return {"status": "already_ingested", "filename": source}
+
     chunks = load_and_chunk_pdf(str(file_path))
     vecs = embed_texts(chunks)
     ids = [str(uuid.uuid5(uuid.NAMESPACE_URL, f"{source}:{i}")) for i in range(len(chunks))]
     payloads = [{"source": source, "text": chunks[i]} for i in range(len(chunks))]
-    QdrantStorage().upsert_vector(ids, vecs, payloads)
+    store.upsert_vector(ids, vecs, payloads)
     return {"status": "ingested", "filename": source, "chunks": len(chunks)}
 
 

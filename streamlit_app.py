@@ -24,7 +24,11 @@ if uploaded is not None:
                 timeout=300.0,
             )
             resp.raise_for_status()
-            st.markdown("Ingestion successful!")
+            result = resp.json()
+            if result.get("status") == "already_ingested":
+                st.markdown("Already ingested")
+            else:
+                st.markdown("Ingestion successful!")
         except Exception as e:
             st.error(f"Failed to ingest: {e}")
 

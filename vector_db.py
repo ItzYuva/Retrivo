@@ -13,12 +13,29 @@ class QdrantStorage:
                 collection_name=self.collection,
                 vectors_config=VectorParams(size=dim, distance=Distance.COSINE)
             )
+        from qdrant_client.models import PayloadSchemaType
+        self.client.create_payload_index(
+            collection_name=self.collection,
+            field_name="source",
+            field_schema=PayloadSchemaType.KEYWORD,
+        )
 
     def upsert_vector(self, ids, vectors, payloads):
         points = [
             PointStruct(id=ids[i], vector=vectors[i], payload=payloads[i]) for i in range(len(ids))
         ]
         self.client.upsert(self.collection, points=points)
+
+    def source_exists(self, source: str) -> bool:
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        results, _ = self.client.scroll(
+            collection_name=self.collection,
+            scroll_filter=Filter(must=[FieldCondition(key="source", match=MatchValue(value=source))]),
+            limit=1,
+            with_payload=False,
+            with_vectors=False,
+        )
+        return len(results) > 0
 
     def search_vectors(self, query_vector, top_k: int=5):
         results = self.client.query_points(
